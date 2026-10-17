@@ -4,6 +4,29 @@ All notable changes to Mother are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.8] - 2026-10-16
+
+### Added
+
+- **`mother gc` reclaims idle Rust `target/` dirs in job worktrees.** A Cargo job worktree's `target/`
+  (9-14 GB each) is deleted once every job on the worktree is `succeeded`/`failed`/`cancelled`, none is
+  adherence-pending or in pipeline review, and nothing anywhere in it changed for `MOTHER_CARGO_TARGET_IDLE_MINUTES`
+  (default 10). Fail-closed: only a real `target/` dir holding `CACHEDIR.TAG` next to a `Cargo.toml` in a
+  linked worktree (`.git` is a file), never a symlink, a main checkout or a main-dir job. A queued/dispatched
+  job that has no `work_dir` yet protects the worktree its branch will use (the whole repo if that can't be
+  derived); the in-use check is repeated right before the `rm`. The job list is read once per pass.
+  Settings: `MOTHER_CARGO_TARGET_PURGE` (`0`/`false`/`no`/`off` or an unrecognised value = report only),
+  `MOTHER_CARGO_TARGET_IDLE_MINUTES`, `MOTHER_CARGO_TARGET_PURGE_EXCLUDE`. It runs in the hourly sweep and
+  when the low-disk gate trips. Deliberately not a shared `CARGO_TARGET_DIR`: cargo's freshness check can
+  silently reuse another checkout's binaries.
+- `mother status` shows a `Rust build dirs:` line (and `rust_build_dirs` in `--format json`); the low-disk
+  needs-attention reason and runner log include Rust build-dir size when `mother gc` has measured it
+  (`$RUNNER_DIR/cargo-targets.json`).
+
+### Changed
+
+- The report-only main-checkout `target/` scan no longer mislabels job worktrees as "main checkout".
+
 ## [0.3.7] - 2026-10-09
 
 ### Changed
